@@ -1,11 +1,16 @@
+# The Sablier Protocol / Sablier Labs (token streaming made easy)
+
 ## Table of Contents
 
-- [The Sablier Protocol](#the-sablier-protocol)
-  - [Streaming](#streaming)
+- [The Sablier Protocol / Sablier Labs (token streaming made easy)](#the-sablier-protocol--sablier-labs-token-streaming-made-easy)
+  - [Table of Contents](#table-of-contents)
+  - [What is Asset Streaming?](#what-is-asset-streaming)
+    - [Use Cases of Assets Streaming](#use-cases-of-assets-streaming)
   - [Types of Streams](#types-of-streams)
-  - [Contract Overview](#contract-overview)
-    - [LockUp Dynamic Stream:](#lockup-dynamic-stream)
+  - [Contract Overview of SablierV2LockupDynamic.sol](#contract-overview-of-sablierv2lockupdynamicsol)
+    - [What is LockUp Dynamic Stream?:](#what-is-lockup-dynamic-stream)
   - [Review Scope:](#review-scope)
+    - [What is SablierV2LockupDynamic Contract used for?](#what-is-sablierv2lockupdynamic-contract-used-for)
     - [Libraries](#libraries)
     - [Storage](#storage)
     - [Constructor Function:](#constructor-function)
@@ -14,26 +19,39 @@
     - [External functions](#external-functions)
     - [Internal View functions](#internal-view-functions)
 
-# The Sablier Protocol
-
-Sablier is a token streaming protocol developed with Ethereum
-smart contracts, designed to facilitate by-the-second payments for cryptocurrencies, specifically ERC-20
+[Sablier](https://sablier.com/) is a token streaming protocol developed with Ethereum
+smart contracts, designed to facilitate `by-the-second` payments for cryptocurrencies, specifically `ERC-20`
 assets. The protocol employs a set of persistent and non-upgradable smart contracts that prioritize security, censorship resistance, self-custody, and functionality without the need for trusted intermediaries who may selectively restrict access.
 
-- The Sablier protocols uses ERC-1620: Money Streaming as specified in the [EIP-1620](https://eips.ethereum.org/EIPS/eip-1620), proposed by Paul Berg the co-founder of Sablier
-  Money streaming represents the idea of continuous payments over a finite period of time. Block numbers are used as a proxy of time to continuously update balances.
+- The Sablier protocols uses `ERC-1620: Money Streaming` as specified in the [EIP-1620](https://eips.ethereum.org/EIPS/eip-1620), proposed by Paul Berg the co-founder of Sablier.
+- Money streaming represents the idea of continuous payments over a finite period of time. Block numbers are used as a proxy of time to continuously update balances.
+
+- As an example, suppose you stream $100 worth of tokens to Bob over a month. You would first deposit the $100 in Sablier, and then, every second, Bob will receive a fraction of those tokens. Bob will be earning tokens in real time. At the end of the month, Bob will have received all funds. But Bob can already withdraw the funds that have already been streamed during the month.
 
 - As an immutable protocol, Sablier is not upgradeable, meaning that no party can pause the contracts, reverse transactions, or alter the users' streams in any way. This ensures the system remains transparent, secure, and resistant to manipulation or abuse.
 
 - Sablier introduces the concept of asset streaming, enabling users to make continuous, real-time payments on a per-second basis. This innovative approach enables seamless, frictionless transactions and promotes increased financial flexibility for users, businesses, and other entities. Sablier makes the passage of time itself the trust-binding mechanism, unlocking business opportunities that were previously unavailable.
 
-- Currently, there are two major versions of the protocol:
-  - V1, which is available under GNU V3, and
-  - V2, which is licensed under BUSL-1.1.
+- As of the time of writing this review(October, 2023), Sablier has two major versions of the protocol: V1, available under GNU V3, and V2, licensed under BUSL-1.1. Both protocol versions are open-source and can be accessed on [Sablier's Labs GitHub page](https://github.com/sablier-labs).
 
-## Streaming
+- In Sablier V2, every stream is an ERC-721 non-fungible token (NFT) whose owner is the stream’s recipient. The recipient can transfer the NFT to another address, which also transfers the right to withdraw funds from the stream. The transferability of the NFT makes streams tradable and usable as collateral in DeFi.
 
-Asset streaming means the ability to make continuous, real-time payments on a per-second basis. This novel approach to making payments is the core concept of Sablier.
+- Sablier V2 introduces the concept of `Lockup Dynamic streams`, a type of stream where the payment rate per second can vary over time. This is facilitated by a `Segment`, which helps calculate the custom streaming curve, determining how the payment rate varies over time. The `milestone` is like a time marker, representing a point in time when the payment rate changes according to the defined streaming curve.
+
+- As of the time of writing this review(October, 2023), This protocol is not upgradeable, meaning that no party can pause the contracts, reverse transactions, or alter the users' streams in any way. This ensures the system remains transparent, secure, and resistant to manipulation or abuse.
+
+## What is Asset Streaming?
+
+Asset streaming means the ability to make continuous, real-time payments on a per-second basis. This novel approach to making payments is the core concept of Sablier. The asset used for Streaming is an `ERC-20 token`
+
+### Use Cases of Assets Streaming
+
+The [Sablier Documentation](https://docs.sablier.com/concepts/use-cases) provides detailed description of the use cases of Money Streaming.
+
+- **Airdropping and Airdrops distribution :** Streaming of Airdrop ensures the longevity of a project, as user will not just get all the airdrop at once, then sell off and dump it. Thus Instead of airdropping the entirety of the token allocation all at once, airdrop recipients receive a fraction of the tokens every second through a Sablier stream.
+- **Price crashes:** Streaming not only creates the right incentives for airdrops, but also ensures that the price of the token won't crash on day one. This has been the case for many airdrops, where a large percentage of recipients dumped immediately after claiming their tokens.
+- **Payroll:** Streaming salaries through Sablier can significantly enhance employee satisfaction and retention.
+- **Vesting** Vesting has been made easier with Money Streaming by Sablier. Organizations does not need to devote considerable time to administer funds, while recipients wait months, quarters, or sometimes even longer to obtain their compensation. The whole process of vesting has been automated and made simpler with Sablier.
 
 ## Types of Streams
 
@@ -45,25 +63,25 @@ Asset streaming means the ability to make continuous, real-time payments on a pe
 - Exponential Cliff
 - Unlock in Steps
 
-## Contract Overview
+## Contract Overview of SablierV2LockupDynamic.sol
 
-### LockUp Dynamic Stream:
+### What is LockUp Dynamic Stream?:
 
-A Lockup Dynamic stream is a type of stream in the Sablier protocol where the payment rate per second can vary over time. it has
+A Lockup Dynamic stream is a type of stream in the Sablier protocol where the payment rate per second can vary over time. it has Segment and Milestones.
 
-- Segment: The Segment helps facilitate the calculation of the custom streaming curve, which determines how the payment rate varies over time.
-- Milestone: The milestone is like the time marker. It represents a point in time when the payment rate changes according to the defined streaming curve.
-
-Envision an hourglass, with grains of sand steadily flowing through it. Now, replace the sand with your crypto assets and the hourglass with Sablier. There you have it: a clear understanding of token streaming.
-
-As an example, suppose you stream $100 worth of tokens to Bob over a month. You would first deposit the $100 in Sablier, and then, every second, Bob will receive a fraction of those tokens. Bob will be earning tokens in real time. At the end of the month, Bob will have received all funds. But Bob can already withdraw the funds that have already been streamed during the month.
+- **Segment:** The Segment helps facilitate the calculation of the custom streaming curve, which determines how the payment rate varies over time.
+- **Milestone:** The milestone is like the time marker. It represents a point in time when the payment rate changes according to the defined streaming curve.
 
 ## Review Scope:
 
-This review covers only the SablierV2LockUpDynamic contract located inside the `src/SablierV2LockUpDynamic.sol`
+This review covers only the SablierV2LockupDynamic contract located inside the `src/SablierV2LockupDynamic.sol`
 
 A Lockup Dynamic stream can be composed of multiple segments, which are separate partitions with different streaming amount and rates.
 The protocol uses these segments to enable custom streaming curves, which power exponential streams, cliff streams, etc.
+
+### What is SablierV2LockupDynamic Contract used for?
+
+The `SablierV2LockUpDynamic` contract, `src/SablierV2LockupDynamic.sol` is used for creating asset(token) streams using segments and milestones, which helps facilitate the calculation of the custom streaming curve, and determines how the payment rate varies over time.
 
 ### Libraries
 
@@ -79,7 +97,7 @@ using CastingUint128 for uint128;
 
 `SablierV2LockupDynamic.sol` has one mapping called `_streams`, it maps the `StreamId` to `Stream` struct defined in the `LockupDynamic` library in the `src/types/DataTypes.sol`.
 
-- The streamId is generated each time a new stream is created and can be queried to get any detail about the Stream as defined in the stream Struct. The streamId is the key, which can be queried to all details or data in the `Stream` struct.
+- The `streamId` is generated each time a new stream is created and can be queried to get any detail about the Stream as defined in the stream Struct. The streamId is the key, which can be queried to all details or data in the `Stream` struct.
 
 ```sh
 mapping(uint256 id => LockupDynamic.Stream stream) private _streams;
@@ -157,25 +175,24 @@ constructor(
 
 The constructor function accepts and initializes 4 parameters:
 
-- address initialAdmin: This is the address of the initial Contract admin. This parameter is passed to the constructor of the `SablierV2Lockup.sol` Contract and get initialized.
+- **address initialAdmin:** This is the address of the initial Contract admin. This parameter is passed to the constructor of the `SablierV2Lockup.sol` Contract and get initialized.
 
-- ISablierV2Comptroller: This is the interface of the `SablierV2Comptroller` contract. This interface defines methods to set the flashFee, protocolFee and toggleFlashAsset respectively.
+- **ISablierV2Comptroller:** This is the interface of the `SablierV2Comptroller` contract. This interface defines methods to set the flashFee, protocolFee and toggleFlashAsset respectively.
 
-  - `flashFee()`:This function retrieves the current global flash fee. As it's a view function, it doesn't modify any state but simply returns the current fee.
+  - **`flashFee()`:** This function retrieves the current global flash fee. As it's a view function, it doesn't modify any state but simply returns the current fee.
 
     - flashFee: This is a global fee that is applied to all flash loans made in the Sablier protocol. `Flash loans` are a feature in DeFi where users can borrow assets without collateral with the condition that the loan is returned within the same transaction.
 
-  - `setFlashFee()`: This function allows the admin to update the flash fee charged on all flash loans made with any ERC-20 asset. It emits a `SetFlashFee` event which includes the old and new flash fee.
+  - **`setFlashFee()`:** This function allows the admin to update the flash fee charged on all flash loans made with any ERC-20 asset. It emits a `SetFlashFee` event which includes the old and new flash fee.
 
-  - `setProtocolFee`: This function sets a new protocol fee that will be charged on all streams created with the provided ERC-20 asset. It emits a `SetProtocolFee` event.
+  - **`setProtocolFee`:** This function sets a new protocol fee that will be charged on all streams created with the provided ERC-20 asset. It emits a `SetProtocolFee` event.
 
     - protocolFees: This is a mapping that stores the protocol fee for each ERC-20 asset used in the streams of the Sablier protocol.
     - A stream in Sablier is a money streaming service where funds are transferred from a sender to a recipient over time.
 
-  - `toggleFlashAsset()`: This function toggles the flash loanability of an ERC-20 asset. It emits a `ToggleFlashAsset` event.
+  - **`toggleFlashAsset()`:** This function toggles the flash loanability of an ERC-20 asset. It emits a `ToggleFlashAsset` event.
 
 ```sh
-
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UD60x18 } from "@prb/math/src/UD60x18.sol";
 import { IAdminable } from "./IAdminable.sol";
@@ -203,17 +220,16 @@ interface ISablierV2Comptroller is IAdminable {
 
 ```
 
-- ISablierV2NFTDescriptor: This is the interface of the `SablierV2NFTDescriptor` contract. This interface defines a method, that generates the Uniform Resource Identifier (URI) describing a particular stream NFT.
+- **ISablierV2NFTDescriptor:** This is the interface of the `SablierV2NFTDescriptor` contract. This interface defines a method, that generates the `Uniform Resource Identifier (URI)` describing a particular stream NFT.
 
-  - `tokenURI(IERC721Metadata sablier, uint256 streamId)`: This function generates a data URI that describes a specific stream NFT.
+  - **`tokenURI(IERC721Metadata sablier, uint256 streamId)`:** This function generates a data URI that describes a specific stream NFT.
     The URI is compliant with the ERC721 metadata standard.
     The function takes in two parameters:
+
     - sablier: This is the address of the Sablier contract where the stream was created.
     - streamId: This is the id of the stream for which to produce a description. This Id is queried to return the URI that contains all the details about the NFT asset.
 
 ```sh
-
-
 import { IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 
 interface ISablierV2NFTDescriptor {
@@ -223,7 +239,7 @@ interface ISablierV2NFTDescriptor {
 
 ```
 
-- uint256 maxSegmentCount: This is maximum number of segments allowed in a stream.
+- **uint256 maxSegmentCount:** This is maximum number of segments allowed in a stream.
   This is an immutable state variable hence it is initialized at construction time and can't be changed.
   By default the maximum number of Segment in a stream is 300 Segments.
 
@@ -717,18 +733,18 @@ function _calculateStreamedAmount(uint256 streamId) internal view returns (uint1
 
 -**\_calculateStreamedAmountForMultipleSegments(uint256 streamId):** This is the function that queries the `streamId` and calculates the amount of funds that have been streamed for a Stream with multiple segments. It takes into account the different segments in the stream and their individual amounts and milestones.
 
-    - How how the logic works:
+- How how the logic works:
 
-      - The function takes one parameter, `streamId`, which is the unique identifier of a stream.
-      - The current timestamp (`block.timestamp`) is assigned to `currentTime`.
-      - The function retrieves the stream associated with the given `streamId`.
-      - It initializes variables `previousSegmentAmounts`, `currentSegmentMilestone`, and `index`.
-      - It enters a loop where it sums up the amounts of all segments whose milestones are earlier than the current time. This is done by checking if `currentSegmentMilestone` is less than currentTime. If true, the amount from the current segment is added to `previousSegmentAmounts`, the index is incremented, and `currentSegmentMilestone` is updated to the milestone of the next segment.
-      - Once it finds a segment whose milestone is later than or equal to the current time, it calculates the streamed amount for this segment. It does this by first converting the amount and the exponent of the current segment into the `SD59x18` format.
-      - It then calculates the elapsed time since the previous milestone and the total time of the current segment.
-      - Using these values, it calculates the percentage of time that has elapsed in the current segment and then raises this percentage to the power of the current segment's exponent. This value is then multiplied by the amount of the current segment to get the streamed amount for the current segment.
-      - If this streamed amount is greater than the amount of the current segment, it returns the greater of `previousSegmentAmounts` and the total amount that has been withdrawn from the stream so far.
-      - Otherwise, it adds the streamed amount for the current segment to `previousSegmentAmounts` and returns this total amount.
+  - The function takes one parameter, `streamId`, which is the unique identifier of a stream.
+    - The current timestamp (`block.timestamp`) is assigned to `currentTime`.
+    - The function retrieves the stream associated with the given `streamId`.
+    - It initializes variables `previousSegmentAmounts`, `currentSegmentMilestone`, and `index`.
+    - It enters a loop where it sums up the amounts of all segments whose milestones are earlier than the current time. This is done by checking if `currentSegmentMilestone` is less than currentTime. If true, the amount from the current segment is added to `previousSegmentAmounts`, the index is incremented, and `currentSegmentMilestone` is updated to the milestone of the next segment.
+    - Once it finds a segment whose milestone is later than or equal to the current time, it calculates the streamed amount for this segment. It does this by first converting the amount and the exponent of the current segment into the `SD59x18` format.
+    - It then calculates the elapsed time since the previous milestone and the total time of the current segment.
+    - Using these values, it calculates the percentage of time that has elapsed in the current segment and then raises this percentage to the power of the current segment's exponent. This value is then multiplied by the amount of the current segment to get the streamed amount for the current segment.
+    - If this streamed amount is greater than the amount of the current segment, it returns the greater of `previousSegmentAmounts` and the total amount that has been withdrawn from the stream so far.
+    - Otherwise, it adds the streamed amount for the current segment to `previousSegmentAmounts` and returns this total amount.
 
 ```sh
 
