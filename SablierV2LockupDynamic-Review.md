@@ -1,3 +1,19 @@
+## Table of Contents
+
+- [The Sablier Protocol](#the-sablier-protocol)
+  - [Streaming](#streaming)
+  - [Types of Streams](#types-of-streams)
+  - [Contract Overview](#contract-overview)
+    - [LockUp Dynamic Stream:](#lockup-dynamic-stream)
+  - [Review Scope:](#review-scope)
+    - [Libraries](#libraries)
+    - [Storage](#storage)
+    - [Constructor Function:](#constructor-function)
+      - [Construction function parameters:](#construction-function-parameters)
+    - [Public View Getter Functions](#public-view-getter-functions)
+    - [External functions](#external-functions)
+    - [Internal View functions](#internal-view-functions)
+
 # The Sablier Protocol
 
 Sablier is a token streaming protocol developed with Ethereum
@@ -41,23 +57,6 @@ A Lockup Dynamic stream is a type of stream in the Sablier protocol where the pa
 Envision an hourglass, with grains of sand steadily flowing through it. Now, replace the sand with your crypto assets and the hourglass with Sablier. There you have it: a clear understanding of token streaming.
 
 As an example, suppose you stream $100 worth of tokens to Bob over a month. You would first deposit the $100 in Sablier, and then, every second, Bob will receive a fraction of those tokens. Bob will be earning tokens in real time. At the end of the month, Bob will have received all funds. But Bob can already withdraw the funds that have already been streamed during the month.
-
-## Table of Contents
-
-- [The Sablier Protocol](#the-sablier-protocol)
-  - [Streaming](#streaming)
-  - [Types of Streams](#types-of-streams)
-  - [Contract Overview](#contract-overview)
-    - [LockUp Dynamic Stream:](#lockup-dynamic-stream)
-  - [Table of Contents](#table-of-contents)
-  - [Review Scope:](#review-scope)
-    - [Libraries](#libraries)
-    - [Storage](#storage)
-    - [Constructor Function:](#constructor-function)
-      - [Construction function parameters:](#construction-function-parameters)
-    - [Public View Getter Functions](#public-view-getter-functions)
-    - [External functions](#external-functions)
-    - [Internal View functions](#internal-view-functions)
 
 ## Review Scope:
 
@@ -677,6 +676,22 @@ function createWithMilestones(
 ### Internal View functions
 
 - \_calculateStreamedAmount(uint256 streamId)
+- \_calculateStreamedAmountForMultipleSegments(uint256 streamId)
+- \_calculateStreamedAmountForOneSegment(uint256 streamId)
+- \_isCallerStreamSender(uint256 streamId)
+- \_statusOf(uint256 streamId)
+- \_streamedAmountOf(uint256 streamId)
+- \_withdrawableAmountOf(uint256 streamId)
+- \_cancel(uint256 streamId)
+- \_createWithMilestones
+- \_renounce(uint256 streamId)
+- \_withdraw(uint256 streamId, address to, uint128 amount)
+
+- \_calculateStreamedAmount(uint256 streamId): This is the function that calculates the streamed amount.
+
+  - It calculates the streamed amount without checking the stream status.
+  - This internal function is called in the `refundableAmountOf` function, when we need to calculate the refundable Amount a user will get, after checking if the Stream can be canceled and also if the has not depleted.
+  - When this function is invoked/called, it calls the internal functions, `_calculateStreamedAmountForMultipleSegments(streamId)` and `_calculateStreamedAmountForOneSegment(streamId)` respectively, after checking if the lengths of the is greater than 1.
 
 ```sh
 function _calculateStreamedAmount(uint256 streamId) internal view returns (uint128) {
@@ -700,7 +715,20 @@ function _calculateStreamedAmount(uint256 streamId) internal view returns (uint1
   }
 ```
 
-- \_calculateStreamedAmountForMultipleSegments(uint256 streamId)
+-**\_calculateStreamedAmountForMultipleSegments(uint256 streamId):** This is the function that queries the `streamId` and calculates the amount of funds that have been streamed for a Stream with multiple segments. It takes into account the different segments in the stream and their individual amounts and milestones.
+
+    - How how the logic works:
+
+      - The function takes one parameter, `streamId`, which is the unique identifier of a stream.
+      - The current timestamp (`block.timestamp`) is assigned to `currentTime`.
+      - The function retrieves the stream associated with the given `streamId`.
+      - It initializes variables `previousSegmentAmounts`, `currentSegmentMilestone`, and `index`.
+      - It enters a loop where it sums up the amounts of all segments whose milestones are earlier than the current time. This is done by checking if `currentSegmentMilestone` is less than currentTime. If true, the amount from the current segment is added to `previousSegmentAmounts`, the index is incremented, and `currentSegmentMilestone` is updated to the milestone of the next segment.
+      - Once it finds a segment whose milestone is later than or equal to the current time, it calculates the streamed amount for this segment. It does this by first converting the amount and the exponent of the current segment into the `SD59x18` format.
+      - It then calculates the elapsed time since the previous milestone and the total time of the current segment.
+      - Using these values, it calculates the percentage of time that has elapsed in the current segment and then raises this percentage to the power of the current segment's exponent. This value is then multiplied by the amount of the current segment to get the streamed amount for the current segment.
+      - If this streamed amount is greater than the amount of the current segment, it returns the greater of `previousSegmentAmounts` and the total amount that has been withdrawn from the stream so far.
+      - Otherwise, it adds the streamed amount for the current segment to `previousSegmentAmounts` and returns this total amount.
 
 ```sh
 
@@ -749,11 +777,21 @@ function _calculateStreamedAmountForMultipleSegments(uint256 streamId) internal 
       return previousSegmentAmounts + uint128(segmentStreamedAmount.intoUint256());
     }
   }
-
-
 ```
 
-- \_calculateStreamedAmountForOneSegment(uint256 streamId)
+- \_calculateStreamedAmountForOneSegment(uint256 streamId): This is the function that queries the `streamId` and calculates the amount of funds that have been streamed for a specific segment of a stream.
+- This function is used when the stream has only one segment. The streamed amount is calculated based on the proportion of time that has elapsed in the stream, and the exponent of the stream, which determines how the streaming rate changes over time.
+
+  - How the logic works:
+
+    - The function takes one parameter: `streamId`, which is the unique identifier of a stream.
+    - It calculates the elapsed time between the current timestamp (`block.timestamp`) and the start time of the stream.
+    - It calculates the total time for the stream, which is the difference between the end time and the start time of the stream.
+    - It calculates the percentage of time that has elapsed in the stream.
+    - It then retrieves the exponent and the deposited amount of the stream.
+    - Using these values, it calculates the streamed amount for the stream. It does this by raising the elapsed time percentage to the power of the stream's exponent and then multiplying this value by the deposited amount.
+    - If the streamed amount is greater than the deposited amount, it returns the total amount that has been withdrawn from the stream so far.
+    - Otherwise, it returns the streamed amount.
 
 ```sh
 
@@ -781,15 +819,25 @@ function _calculateStreamedAmountForOneSegment(uint256 streamId) internal view r
 
 ```
 
-- \_isCallerStreamSender(uint256 streamId)
+- \_isCallerStreamSender(uint256 streamId): This is the function that queries the `streamId` and checks if the caller, `msg.sender` is the same as the sender of the stream.
+- It returns a boolean value indicating whether the caller is the sender of the stream or not. This is typically used to restrict certain operations, like cancelling a stream. Only the creator or owner of a Stream can cancel it.
 
 ```sh
 function _isCallerStreamSender(uint256 streamId) internal view override returns (bool) {
     return msg.sender == _streams[streamId].sender;
   }
+```
 
+- \_statusOf(uint256 streamId): This is the function that that queries the `streamId`, checks and returns the current status of the stream.
+- The status of a stream and an `enum`type defined in the `src/types//DataTypes.sol` and can be one of the following:
+  - PENDING shows that a Stream has been created but has not started, the assets (ERC20-Tokens) are in a pending state.
+  - STREAMING shows an active stream where assets are currently being streamed.
+  - SETTLED shows that all assets have been streamed and recipient is due to withdraw them.
+  - CANCELED shows that a Stream has been Canceled and remaining assets awaits recipient's withdrawal.
+  - DEPLETED shows that a stream has be used up and all assets have been withdrawn and/or refunded.
 
-  function _statusOf(uint256 streamId) internal view override returns (Lockup.Status) {
+```sh
+function _statusOf(uint256 streamId) internal view override returns (Lockup.Status) {
     if (_streams[streamId].isDepleted) {
       return Lockup.Status.DEPLETED;
     } else if (_streams[streamId].wasCanceled) {
@@ -809,7 +857,13 @@ function _isCallerStreamSender(uint256 streamId) internal view override returns 
 
 ```
 
-- \_streamedAmountOf(uint256 streamId)
+- \_streamedAmountOf(uint256 streamId): This is the function that queries the `streamId` and calculates the amount of a token that has already been streamed in a specific stream.
+
+  - How the logic works:
+    - The function first retrieves the `Lockup.Amounts` struct for the given `streamId` from the`_streams`mapping. This struct contains the deposited, withdrawn, and refunded amounts for the stream as defined in `Lockup` library in the `src/types/DataTypes.sol`.
+    - If the stream is marked as depleted (`_streams[streamId].isDepleted` is `true`), the function returns the `withdrawn` amount. This means that all deposited funds have been withdrawn from the stream.
+    - If the stream was cancelled (`_streams[streamId].wasCanceled` is `true`), the function returns the difference between the `deposited` and `refunded` amounts. This is the amount that was streamed before the stream was cancelled.
+    - If the stream is neither depleted nor cancelled, the function calls `_calculateStreamedAmount(streamId)` to calculate the amount that has been streamed so far. This function presumably uses the streaming parameters (start time, stop time, deposit amount) to calculate the streamed amount.
 
 ```sh
 
@@ -825,13 +879,15 @@ function _streamedAmountOf(uint256 streamId) internal view returns (uint128) {
     return _calculateStreamedAmount(streamId);
   }
 
-
-
-
-
 ```
 
-- \_withdrawableAmountOf(uint256 streamId)
+- \_withdrawableAmountOf(uint256 streamId): This is the function that queries the `streamId` and calculates the amount of a token that can be withdrawn from a specific stream.
+
+  - How the logic works:
+
+    - The function calls` _streamedAmountOf(streamId)` to get the total amount of the token that has already been streamed for the given `streamId`. The \_streamedAmountOf function takes into consideration whether the stream is depleted, cancelled, or active and calculates the streamed amount accordingly.
+    - Then from the total streamed amount, the function subtracts the amount that has already been withdrawn.
+    - And then returns the available withdrawable amount.
 
 ```sh
 function _withdrawableAmountOf(uint256 streamId) internal view override returns (uint128) {
@@ -839,51 +895,53 @@ function _withdrawableAmountOf(uint256 streamId) internal view override returns 
   }
 ```
 
-- \_cancel(uint256 streamId)
+- \_cancel(uint256 streamId): This is the function that queries the `streamId` and cancels stream.
+  - How the logic works:
+    - It calculates the already streamed amount for the given streamId by calling the `_calculateStreamedAmount(streamId)` function.
+    - It retrieves the `Lockup.Amounts` struct for the given `streamId` from the `_streams` mapping, which includes the `deposited`, `withdrawn`, and `refunded` amounts for the stream.
+    - It checks whether the already streamed amount is greater than or equal to the deposited amount. If so, it reverts the transaction with an error message indicating that the stream has already been settled. The custom error message is defined `Errors` library in the `src/libraries/Errors.sol`
+    - It checks whether the stream is cancelable. If the stream is not cancelable, it reverts the transaction with an error message indicating that the stream cannot be canceled.
+    - It calculates the amount that should be returned to the sender (`senderAmount`) and the amount that should be made available to the recipient (`recipientAmount`).
+    - It sets the `wasCanceled` and `isCancelable` members of the `Stream` Struct to `true` and `false` respectively
+    - If the `recipientAmount` is 0, it marks the stream as depleted by setting the `isDepleted` member of the `Stream` Struct to true.
+    - It sets the `refunded` field in the `amounts` struct of the stream to the `senderAmount`.
+    - It retrieves the sender and recipient addresses from the stream.
+    - It transfers the `senderAmount` back to the sender using the `safeTransfer` function of the stream's asset. The Stream's asset is an ERC20-token.
+    - If the sender is the one who initiated the cancellation (`msg.sender == sender`), it attempts to call the `onStreamCanceled` function on the recipient contract, passing the `streamId`, `sender`, `senderAmount`, and `recipientAmount` as parameters. If the recipient contract does not have an `onStreamCanceled` function or if this function call fails for any other reason, it silently ignores the error.
+    - If the sender is not the one who initiated the cancellation, it attempts to call the `onStreamCanceled` function on the sender contract, passing the `streamId`, `recipient`, `senderAmount`, and `recipientAmount` as parameters. If the sender contract does not have an onStreamCanceled function or if this function call fails for any other reason, it silently ignores the error.
+    - Finally, it emits a `CancelLockupStream` event with the `streamId`, `sender`, `recipient`, `senderAmount`, and `recipientAmount` as parameters. The event is defined in the interface of `SablierV2Lockup` in the `src/interfaces/ISablierV2Lockup.sol`.
 
 ```sh
-
-
 function _cancel(uint256 streamId) internal override {
-    // Calculate the streamed amount.
+
     uint128 streamedAmount = _calculateStreamedAmount(streamId);
 
-    // Retrieve the amounts from storage.
     Lockup.Amounts memory amounts = _streams[streamId].amounts;
 
-    // Checks: the stream is not settled.
     if (streamedAmount >= amounts.deposited) {
       revert Errors.SablierV2Lockup_StreamSettled(streamId);
     }
 
-    // Checks: the stream is cancelable.
     if (!_streams[streamId].isCancelable) {
       revert Errors.SablierV2Lockup_StreamNotCancelable(streamId);
     }
 
-    // Calculate the sender's and the recipient's amount.
     uint128 senderAmount = amounts.deposited - streamedAmount;
     uint128 recipientAmount = streamedAmount - amounts.withdrawn;
 
-    // Effects: mark the stream as canceled.
     _streams[streamId].wasCanceled = true;
 
-    // Effects: make the stream not cancelable anymore, because a stream can only be canceled once.
     _streams[streamId].isCancelable = false;
 
-    // Effects: If there are no assets left for the recipient to withdraw, mark the stream as depleted.
     if (recipientAmount == 0) {
       _streams[streamId].isDepleted = true;
     }
 
-    // Effects: set the refunded amount.
     _streams[streamId].amounts.refunded = senderAmount;
 
-    // Retrieve the sender and the recipient from storage.
     address sender = _streams[streamId].sender;
     address recipient = _ownerOf(streamId);
 
-    // Interactions: refund the sender.
     _streams[streamId].asset.safeTransfer({ to: sender, value: senderAmount });
 
 
@@ -913,23 +971,29 @@ function _cancel(uint256 streamId) internal override {
       }
     }
 
-    // Log the cancellation.
     emit ISablierV2Lockup.CancelLockupStream(streamId, sender, recipient, senderAmount, recipientAmount);
   }
-
-
 ```
 
-- \_createWithMilestones
+- \_createWithMilestones: This is the function that `SablierV2LockupDynamic` contract uses to Create new Stream (Money Stream) with predefined segment Milestones,`src/SablierV2LockupDynamic.sol`.
+
+How the logic works:
+
+     - The function first retrieves the protocol fee for the given asset from the comptroller contract, as defined in the `src/interfaces/ISablierV2Base.sol` and `src/interfaces/ISablierV2Comptroller.sol`.
+     - It then calculates the deposit amount and fees using the `Helpers.checkAndCalculateFees` function, defined in the `Helpers` library at `src/libraries/Helpers.sol`. This function takes in the total amount, protocol fee, broker fee, and a maximum fee limit as parameters.
+     - Next, it validates the segments and start time with the `Helpers.checkCreateWithMilestones` function.
+     - It then initializes a new `stream` with the `streamId`, writes to `storage` and sets the various properties of the stream.
+     -  Then it sets the start and end times for the stream and adds the segments to the stream. It also increments the nextStreamId and updates the protocolRevenues mapping with the protocol fee, as defined in the `src/interfaces/ISablierV2Base.sol
+     -  It then mints a new NFT and assigns it to the recipient.
+     -  The then transfers the `deposit` and protocol fee from the sender to the contract itself. It also checks if there is a broker fee, and then it transfers this fee from the sender to the broker account.
+     -  Finally, it emits an `ISablierV2LockupDynamic.CreateLockupDynamicStream` event to log the creation of the new stream, as defined in the `src/interfaces/ISablierV2LockupDynamic.sol`.
 
 ```sh
-
 
 function _createWithMilestones(LockupDynamic.CreateWithMilestones memory params) internal returns (uint256 streamId) {
 
     UD60x18 protocolFee = comptroller.protocolFees(params.asset);
 
-    // Checks: check the fees and calculate the fee amounts.
     Lockup.CreateAmounts memory createAmounts = Helpers.checkAndCalculateFees(
       params.totalAmount,
       protocolFee,
@@ -937,13 +1001,10 @@ function _createWithMilestones(LockupDynamic.CreateWithMilestones memory params)
       MAX_FEE
     );
 
-    // Checks: validate the user-provided parameters.
     Helpers.checkCreateWithMilestones(createAmounts.deposit, params.segments, MAX_SEGMENT_COUNT, params.startTime);
 
-    // Load the stream id in a variable.
     streamId = nextStreamId;
 
-    // Effects: create the stream.
     LockupDynamic.Stream storage stream = _streams[streamId];
     stream.amounts.deposited = createAmounts.deposit;
     stream.asset = params.asset;
@@ -953,7 +1014,6 @@ function _createWithMilestones(LockupDynamic.CreateWithMilestones memory params)
     stream.sender = params.sender;
 
     unchecked {
-      // The segment count cannot be zero at this point.
       uint256 segmentCount = params.segments.length;
       stream.endTime = params.segments[segmentCount - 1].milestone;
       stream.startTime = params.startTime;
@@ -963,13 +1023,10 @@ function _createWithMilestones(LockupDynamic.CreateWithMilestones memory params)
         stream.segments.push(params.segments[i]);
       }
 
-      // Effects: bump the next stream id and record the protocol fee.
-      // Using unchecked arithmetic because these calculations cannot realistically overflow, ever.
       nextStreamId = streamId + 1;
       protocolRevenues[params.asset] = protocolRevenues[params.asset] + createAmounts.protocolFee;
     }
 
-    // Effects: mint the NFT to the recipient.
     _mint({ to: params.recipient, tokenId: streamId });
 
 
@@ -981,12 +1038,10 @@ function _createWithMilestones(LockupDynamic.CreateWithMilestones memory params)
       });
     }
 
-    // Interactions: pay the broker fee, if not zero.
     if (createAmounts.brokerFee > 0) {
       params.asset.safeTransferFrom({ from: msg.sender, to: params.broker.account, value: createAmounts.brokerFee });
     }
 
-    // Log the newly created stream.
     emit ISablierV2LockupDynamic.CreateLockupDynamicStream({
       streamId: streamId,
       funder: msg.sender,
@@ -1001,47 +1056,51 @@ function _createWithMilestones(LockupDynamic.CreateWithMilestones memory params)
       broker: params.broker.account
     });
   }
-
-
 ```
 
-- \_renounce(uint256 streamId)
+- \_renounce(uint256 streamId): This is that is used to renounce a stream. `renouncing` a stream means making it non-cancelable.
+
+  - How the logic works:
+
+  - It first checks if the stream is not cancelable. This is done by accessing the `isCancelable` property of the specific stream in the `_streams` mapping using the `streamId`.
+  - If the stream is not cancelable, it reverts the transaction and throws an `Errors.SablierV2Lockup_StreamNotCancelable` as defined in the `Errors` library at `src/libraries/Errors.sol`.
+  - If the stream is cancelable, the function sets the `isCancelable` property of the stream to `false`, effectively renouncing the stream.
+  - Once a stream is renounced, it cannot be canceled anymore. This might be useful in scenarios where the stream creator wants to assure the recipient that the stream will not be canceled in the future.
 
 ```sh
-
 function _renounce(uint256 streamId) internal override {
-    // Checks: the stream is cancelable.
+
     if (!_streams[streamId].isCancelable) {
       revert Errors.SablierV2Lockup_StreamNotCancelable(streamId);
     }
-
-    // Effects: renounce the stream by making it not cancelable.
     _streams[streamId].isCancelable = false;
   }
-
-
-
 ```
 
-- \_withdraw(uint256 streamId, address to, uint128 amount)
+- \_withdraw(uint256 streamId, address to, uint128 amount): This is the function that is used to withdraw a specified amount from a stream.
+
+  - The function takes in three arguments: `streamId`, `to`, and `amount`. streamId is the identifier of the stream from which the amount will be withdrawn, to is the address to which the withdrawn amount will be transferred, and amount is the amount to be withdrawn.
+
+    - How the logic works:
+      - It first updates the `withdrawn` amount of the stream by adding the specified `amount` to the existing `withdrawn` amount, from the `_streams` mapping.
+      - It then retrieves the amounts from storage for the specific stream using the `streamId`as key.
+      - It then checks if the `withdrawn` amount is greater than or equal to the `deposited` amount minus the `refunded` amount, the function marks the stream as depleted and makes it not cancelable anymore.
+      - Finally, the function performs the `ERC-20 transfer` of the specified `amount` from the contract to the `to` address.
 
 ```sh
 function _withdraw(uint256 streamId, address to, uint128 amount) internal override {
-    // Effects: update the withdrawn amount.
+
     _streams[streamId].amounts.withdrawn = _streams[streamId].amounts.withdrawn + amount;
 
-    // Retrieve the amounts from storage.
     Lockup.Amounts memory amounts = _streams[streamId].amounts;
 
     if (amounts.withdrawn >= amounts.deposited - amounts.refunded) {
-      // Effects: mark the stream as depleted.
+
       _streams[streamId].isDepleted = true;
 
-      // Effects: make the stream not cancelable anymore, because a depleted stream cannot be canceled.
       _streams[streamId].isCancelable = false;
     }
 
-    // Interactions: perform the ERC-20 transfer.
     _streams[streamId].asset.safeTransfer({ to: to, value: amount });
   }
 
