@@ -1,20 +1,21 @@
-# The Sablier Protocol / Sablier Labs (token streaming made easy)
+# Sablier Protocol / Sablier Labs (token streaming made easy)
 
 ## Table of Contents
 
-- [The Sablier Protocol / Sablier Labs (token streaming made easy)](#the-sablier-protocol--sablier-labs-token-streaming-made-easy)
+- [Sablier Protocol / Sablier Labs (token streaming made easy)](#sablier-protocol--sablier-labs-token-streaming-made-easy)
   - [Table of Contents](#table-of-contents)
-  - [What is Asset Streaming?](#what-is-asset-streaming)
+  - [What is Asset(token) Streaming?](#what-is-assettoken-streaming)
     - [Use Cases of Assets Streaming](#use-cases-of-assets-streaming)
   - [Types of Streams](#types-of-streams)
   - [Contract Overview of SablierV2LockupDynamic.sol](#contract-overview-of-sablierv2lockupdynamicsol)
     - [What is LockUp Dynamic Stream?:](#what-is-lockup-dynamic-stream)
   - [Review Scope:](#review-scope)
     - [What is SablierV2LockupDynamic Contract used for?](#what-is-sablierv2lockupdynamic-contract-used-for)
+  - [SablierV2LockupDynamic Contract Walkthrough](#sablierv2lockupdynamic-contract-walkthrough)
     - [Libraries](#libraries)
     - [Storage](#storage)
     - [Constructor Function:](#constructor-function)
-      - [Construction function parameters:](#construction-function-parameters)
+      - [Constructor function parameters:](#constructor-function-parameters)
     - [Public View Getter Functions](#public-view-getter-functions)
     - [External functions](#external-functions)
     - [Internal View functions](#internal-view-functions)
@@ -40,7 +41,7 @@ assets. The protocol employs a set of persistent and non-upgradable smart contra
 
 - As of the time of writing this review(October, 2023), This protocol is not upgradeable, meaning that no party can pause the contracts, reverse transactions, or alter the users' streams in any way. This ensures the system remains transparent, secure, and resistant to manipulation or abuse.
 
-## What is Asset Streaming?
+## What is Asset(token) Streaming?
 
 Asset streaming means the ability to make continuous, real-time payments on a per-second basis. This novel approach to making payments is the core concept of Sablier. The asset used for Streaming is an `ERC-20 token`
 
@@ -51,7 +52,7 @@ The [Sablier Documentation](https://docs.sablier.com/concepts/use-cases) provide
 - **Airdropping and Airdrops distribution :** Streaming of Airdrop ensures the longevity of a project, as user will not just get all the airdrop at once, then sell off and dump it. Thus Instead of airdropping the entirety of the token allocation all at once, airdrop recipients receive a fraction of the tokens every second through a Sablier stream.
 - **Price crashes:** Streaming not only creates the right incentives for airdrops, but also ensures that the price of the token won't crash on day one. This has been the case for many airdrops, where a large percentage of recipients dumped immediately after claiming their tokens.
 - **Payroll:** Streaming salaries through Sablier can significantly enhance employee satisfaction and retention.
-- **Vesting** Vesting has been made easier with Money Streaming by Sablier. Organizations does not need to devote considerable time to administer funds, while recipients wait months, quarters, or sometimes even longer to obtain their compensation. The whole process of vesting has been automated and made simpler with Sablier.
+- **Vesting:** Vesting has been made easier with Money Streaming by Sablier. Organizations does not need to devote considerable time to administer funds, while recipients wait months, quarters, or sometimes even longer to obtain their compensation. The whole process of vesting has been automated and made simpler with Sablier.
 
 ## Types of Streams
 
@@ -82,6 +83,8 @@ The protocol uses these segments to enable custom streaming curves, which power 
 ### What is SablierV2LockupDynamic Contract used for?
 
 The `SablierV2LockUpDynamic` contract, `src/SablierV2LockupDynamic.sol` is used for creating asset(token) streams using segments and milestones, which helps facilitate the calculation of the custom streaming curve, and determines how the payment rate varies over time.
+
+## SablierV2LockupDynamic Contract Walkthrough
 
 ### Libraries
 
@@ -126,9 +129,9 @@ The `Stream` struct has tight variable packing to save gas.
 
 ```
 
-Inside the Stream Struct has two structs, `Segments` and `Amounts`
+Inside the Stream Struct there are two structs, `Segments` and `Amounts`
 
-`Segment` is a struct with three fields:
+`Segment` is a struct with three fields, defined in the `LockupDynamic` library inside the `src/types/DataTypes.sol`
 
 ```sh
 struct Segment {
@@ -168,10 +171,9 @@ constructor(
     MAX_SEGMENT_COUNT = maxSegmentCount;
     nextStreamId = 1;
   }
-
 ```
 
-#### Construction function parameters:
+#### Constructor function parameters:
 
 The constructor function accepts and initializes 4 parameters:
 
@@ -179,18 +181,18 @@ The constructor function accepts and initializes 4 parameters:
 
 - **ISablierV2Comptroller:** This is the interface of the `SablierV2Comptroller` contract. This interface defines methods to set the flashFee, protocolFee and toggleFlashAsset respectively.
 
-  - **`flashFee()`:** This function retrieves the current global flash fee. As it's a view function, it doesn't modify any state but simply returns the current fee.
+  - `flashFee()`: This function retrieves the current global flash fee. As it's a view function, it doesn't modify any state but simply returns the current fee.
 
     - flashFee: This is a global fee that is applied to all flash loans made in the Sablier protocol. `Flash loans` are a feature in DeFi where users can borrow assets without collateral with the condition that the loan is returned within the same transaction.
 
-  - **`setFlashFee()`:** This function allows the admin to update the flash fee charged on all flash loans made with any ERC-20 asset. It emits a `SetFlashFee` event which includes the old and new flash fee.
+  - `setFlashFee()`: This function allows the admin to update the flash fee charged on all flash loans made with any ERC-20 asset. It emits a `SetFlashFee` event which includes the old and new flash fee.
 
-  - **`setProtocolFee`:** This function sets a new protocol fee that will be charged on all streams created with the provided ERC-20 asset. It emits a `SetProtocolFee` event.
+  - `setProtocolFee`: This function sets a new protocol fee that will be charged on all streams created with the provided ERC-20 asset. It emits a `SetProtocolFee` event.
 
     - protocolFees: This is a mapping that stores the protocol fee for each ERC-20 asset used in the streams of the Sablier protocol.
     - A stream in Sablier is a money streaming service where funds are transferred from a sender to a recipient over time.
 
-  - **`toggleFlashAsset()`:** This function toggles the flash loanability of an ERC-20 asset. It emits a `ToggleFlashAsset` event.
+  - `toggleFlashAsset()`: This function toggles the flash loanability of an ERC-20 asset. It emits a `ToggleFlashAsset` event.
 
 ```sh
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -217,12 +219,11 @@ interface ISablierV2Comptroller is IAdminable {
 
     function toggleFlashAsset(IERC20 asset) external;
 }
-
 ```
 
 - **ISablierV2NFTDescriptor:** This is the interface of the `SablierV2NFTDescriptor` contract. This interface defines a method, that generates the `Uniform Resource Identifier (URI)` describing a particular stream NFT.
 
-  - **`tokenURI(IERC721Metadata sablier, uint256 streamId)`:** This function generates a data URI that describes a specific stream NFT.
+  - `tokenURI(IERC721Metadata sablier, uint256 streamId)`: This function generates a data URI that describes a specific stream NFT.
     The URI is compliant with the ERC721 metadata standard.
     The function takes in two parameters:
 
@@ -239,9 +240,9 @@ interface ISablierV2NFTDescriptor {
 
 ```
 
-- **uint256 maxSegmentCount:** This is maximum number of segments allowed in a stream.
+- **uint256 maxSegmentCount:** This is the maximum number of segments allowed in a stream.
   This is an immutable state variable hence it is initialized at construction time and can't be changed.
-  By default the maximum number of Segment in a stream is 300 Segments.
+- The maximum allowable number of Segment in a stream is 300 Segments.
 
 ```sh
 uint256 public immutable override MAX_SEGMENT_COUNT;
@@ -249,7 +250,7 @@ uint256 public immutable override MAX_SEGMENT_COUNT;
 
 ### Public View Getter Functions
 
-As of the time of writing this review (October 2023), the `SablierV2LockupDynamic` contract has 18 getter functions which uses the `streamId` to query the Blockchain state and returns the specific data stored in the Blockchain Storage.
+As of the time of writing this review (October 2023), the `SablierV2LockupDynamic` contract has `18 getter functions` which uses the `streamId` to query the Blockchain state and returns the specific data stored in the Blockchain Storage.
 The storage variables are the members defined in the `Stream` struct.
 
 - getAsset(uint256 streamId)
@@ -271,8 +272,9 @@ The storage variables are the members defined in the `Stream` struct.
 - function streamedAmountOf(uint256 streamId)
 - wasCanceled(uint256 streamId)
 
-- getAsset(uint256 streamId): This is the function that queries the streamId and retrieves the asset from the Blockchain state. The assets is an ERC20-Token, used for the Streaming and defined in the Stream Struct. This function inherits and overrides the the modifier from the SablierV2Lockup abstract contract.
-- - `notNull(streamId)`: This is modifier defined in the `SablierV2Lockup` abstract contract, `src/abstracts/SablierV2Lockup.sol`.
+- **getAsset(uint256 streamId):** This is the function that queries the `streamId` and retrieves the asset from the Blockchain state. The assets is an `ERC20-Token`, used for the Streaming and defined in the `Stream` Struct. This function inherits and overrides the the modifier from the SablierV2Lockup abstract contract.
+
+  - `notNull(streamId)`: This is modifier defined in the `SablierV2Lockup` abstract contract, `src/abstracts/SablierV2Lockup.sol`.
     It calls the `isStream` method defined in the interface of SablierV2Lockup contract, `src/interfaces/ISablierV2Lockup.sol` which checks and ensure that the streamId passed in as a parameter does not reference a null stream and if Null, it reverts using the custom error `SablierV2Lockup_Null(streamId)` defined in the `src/libraries/Errors.sol`
 
   ```sh
@@ -291,20 +293,20 @@ The storage variables are the members defined in the `Stream` struct.
   }
   ```
 
-- getDepositedAmount(uint256 streamId): This is the function that queries the streamId and retrieves the depositedAmount from the Blockchain state.
+- **getDepositedAmount(uint256 streamId):** This is the function that queries the `streamId` and retrieves the depositedAmount from the Blockchain state.
   - Deposited amount is defined in the `Amounts` Struct in the `Lockup` library and referenced in the Stream struct in the Lockup library, `src/types/DataTypes.sol`.
-  - Amounts Struct contains the deposit, withdrawn, and refunded amounts, all denoted in units of the asset's decimals.
-  -
+  - `Amounts` Struct contains the deposit, withdrawn, and refunded amounts, all denoted in units of the asset's decimals.
 
 ```sh
 function getDepositedAmount(
     uint256 streamId
   ) external view override notNull(streamId) returns (uint128 depositedAmount) {
+
     depositedAmount = _streams[streamId].amounts.deposited;
   }
 ```
 
-- getEndTime(uint256 streamId): This is the function that queries the streamId and retrieves the Unix timestamp of the stream's end time from the Blockchain state.
+- **getEndTime(uint256 streamId):** This is the function that queries the streamId and retrieves the Unix timestamp of the stream's end time from the Blockchain state.
   - the endTime is defined in the Streams struct and referenced in the \_streams mapping
   - The `Unix` timestamp is the Epoch time. It measures the number of seconds that have elapsed since 00:00:00 UTC on 1 January 1970
 
